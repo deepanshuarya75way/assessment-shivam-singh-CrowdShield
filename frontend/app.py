@@ -1,5 +1,4 @@
-
-import streamlit as st
+mport streamlit as st
 import sys
 import os
 import time
@@ -329,11 +328,6 @@ section[data-testid="stSidebar"] h2 {
 # HEADER
 # --------------------------------------------------
 
-
-# --------------------------------------------------
-# HEADER
-# --------------------------------------------------
-
 logo_col, title_col, status_col = st.columns([1.4, 6, 2])
 
 with logo_col:
@@ -382,8 +376,8 @@ with st.sidebar:
     st.markdown("🔴 ByteTrack Tracking")
     st.markdown("🔴 Crowd Analytics")
     st.markdown("🔴 Video Intelligence")
-
     st.markdown("---")
+
     st.markdown("### SYSTEM INFORMATION")
 
     st.caption("PROJECT: CROWDSHIELD")
@@ -415,10 +409,56 @@ with left:
     if uploaded_file:
         st.success(f"VIDEO LOADED: {uploaded_file.name}")
 
-        if st.button("🚨 INITIATE CROWD DETECTION", use_container_width=True):
+        # OPERATOR CONFIGURABLE CROWD THRESHOLDS
+
+        st.markdown("### CROWD THRESHOLD SETTINGS")
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+            elevated_limit = st.number_input(
+                "Elevated Crowd Limit",
+                min_value=1,
+                value=15,
+                step=1
+            )
+
+        with col2:
+            high_limit = st.number_input(
+                "High Crowd Limit",
+                min_value=1,
+                value=30,
+                step=1
+            )
+
+        st.caption(
+            "Set the crowd limits for the selected surveillance video."
+        )
+
+        if st.button(
+            "🚨 INITIATE CROWD DETECTION",
+            use_container_width=True
+        ):
+
+            # VALIDATION
+
+            if elevated_limit == high_limit:
+                st.error(
+                    "Invalid limits: Elevated limit must be lower than High limit."
+                )
+                st.stop()
+
+            # AUTOMATICALLY HANDLE REVERSED INPUTS
+
+            elevated_limit, high_limit = sorted(
+                [elevated_limit, high_limit]
+            )
 
             input_path = ROOT / uploaded_file.name
-            output_path = OUTPUTS / f"processed_{Path(uploaded_file.name).stem}.mp4"
+
+            output_path = OUTPUTS / (
+                f"processed_{Path(uploaded_file.name).stem}.mp4"
+            )
 
             with open(input_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
@@ -427,17 +467,25 @@ with left:
             status_text = st.empty()
 
             def update_progress(value):
-                progress_bar.progress(min(max(int(value), 0), 100))
+                progress_bar.progress(
+                    min(max(int(value), 0), 100)
+                )
+
                 status_text.markdown(
                     f"**PROCESSING VIDEO: {int(value)}%**"
                 )
 
             try:
-                with st.spinner("ANALYSING SURVEILLANCE FOOTAGE..."):
+                with st.spinner(
+                    "ANALYSING SURVEILLANCE FOOTAGE..."
+                ):
+
                     results = run_detection(
                         str(input_path),
                         str(output_path),
-                        progress_callback=update_progress
+                        progress_callback=update_progress,
+                        elevated_limit=elevated_limit,
+                        high_limit=high_limit
                     )
 
                 st.session_state.results = results
@@ -445,7 +493,10 @@ with left:
                 st.session_state.uploaded_name = uploaded_file.name
 
                 progress_bar.progress(100)
-                status_text.success("DETECTION COMPLETED SUCCESSFULLY")
+
+                status_text.success(
+                    "DETECTION COMPLETED SUCCESSFULLY"
+                )
 
             except Exception as e:
                 st.error(f"Detection failed: {e}")
@@ -454,7 +505,10 @@ with left:
                 if input_path.exists():
                     input_path.unlink()
 
-    st.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="cs-divider"></div>',
+        unsafe_allow_html=True
+    )
 
     st.markdown("### PROCESSED SURVEILLANCE FEED")
 
@@ -462,13 +516,20 @@ with left:
         st.session_state.processed_video
         and Path(st.session_state.processed_video).exists()
     ):
+
         st.video(st.session_state.processed_video)
 
-        with open(st.session_state.processed_video, "rb") as video_file:
+        with open(
+            st.session_state.processed_video,
+            "rb"
+        ) as video_file:
+
             st.download_button(
                 "⬇ DOWNLOAD PROCESSED VIDEO",
                 data=video_file,
-                file_name=Path(st.session_state.processed_video).name,
+                file_name=Path(
+                    st.session_state.processed_video
+                ).name,
                 mime="video/mp4",
                 use_container_width=True
             )
@@ -504,7 +565,10 @@ with right:
     </div>
     """, unsafe_allow_html=True)
 
-    st.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="cs-divider"></div>',
+        unsafe_allow_html=True
+    )
 
     st.markdown("### DETECTION INTELLIGENCE")
 
@@ -551,22 +615,35 @@ with right:
         </div>
         """, unsafe_allow_html=True)
 
-    st.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="cs-divider"></div>',
+        unsafe_allow_html=True
+    )
+
+    # --------------------------------------------------
+    # CONFIGURABLE THREAT MONITOR
+    # --------------------------------------------------
 
     st.markdown("### THREAT MONITOR")
 
     if results:
-        if current_people >= 30:
+
+        elevated_limit = results.get("elevated_limit", 15)
+        high_limit = results.get("high_limit", 30)
+
+        if current_people >= high_limit:
+
             st.markdown("""
             <div class="alert-box">
                 <b style="color:#ff3048;">⚠ HIGH CROWD LEVEL</b>
                 <p style="font-size:12px;color:#aaa;">
-                    Crowd count has crossed the configured threshold.
+                    Crowd count has crossed the high threshold.
                 </p>
             </div>
             """, unsafe_allow_html=True)
 
-        elif current_people >= 15:
+        elif current_people >= elevated_limit:
+
             st.markdown("""
             <div class="alert-box">
                 <b style="color:#ff9b42;">⚠ ELEVATED CROWD LEVEL</b>
@@ -577,7 +654,9 @@ with right:
             """, unsafe_allow_html=True)
 
         else:
-            st.success("✓ Crowd count is below the configured alert thresholds.")
+            st.success(
+                "✓ Crowd count is below the configured alert thresholds."
+            )
 
     else:
         st.info("Waiting for video analysis.")
@@ -586,7 +665,10 @@ with right:
 # FOOTER
 # --------------------------------------------------
 
-st.markdown('<div class="cs-divider"></div>', unsafe_allow_html=True)
+st.markdown(
+    '<div class="cs-divider"></div>',
+    unsafe_allow_html=True
+)
 
 st.markdown("""
 <div style="text-align:center;padding:15px;">
