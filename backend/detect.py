@@ -97,7 +97,7 @@ def run_detection(video_path, output_path, progress_callback=None, show_window=F
                 crowd_status = "ELEVATED"
                 status_color = (0, 165, 255)
             else:
-                crowd_status = "NORMAL
+                crowd_status = "NORMAL"
                 status_color = (0,255, 0)            
 
             annotated = results[0].plot(
