@@ -10,7 +10,18 @@ ROOT = Path(__file__).resolve().parent.parent
 MODEL_PATH = ROOT / "models" / "yolo11n.pt"
 
 
-def run_detection(video_path, output_path, progress_callback=None, show_window=False):
+def run_detection(video_path, output_path, progress_callback=None, show_window=False, elevated_limit=15, high_limit=30):
+
+    elevated_limit = int(elevated_limit)
+    high_limit = int(high_limit)
+
+    if elevated_limit <= 0 or high_limit <= 0:
+        raise ValueError("Crowd limits must be positive integers.")
+
+    elevated_limit, high_limit = sorted([elevated_limit, high_limit])
+    if elevated_limit == high_limit:
+        raise ValueError("Crowd limits must be different.")
+
 
     if not MODEL_PATH.exists():
         raise FileNotFoundError(f"Model missing: {MODEL_PATH}")
@@ -78,6 +89,17 @@ def run_detection(video_path, output_path, progress_callback=None, show_window=F
                 current_people = len(ids)
                 unique_ids.update(int(i) for i in ids)
 
+            if current_people >=high_limit:
+                crowd_status = "HIGH"
+                status_color = (0, 0, 255)
+
+            elif current_people>= elevated_limit:
+                crowd_status = "ELEVATED"
+                status_color = (0, 165, 255)
+            else:
+                crowd_status = "NORMAL
+                status_color = (0,255, 0)            
+
             annotated = results[0].plot(
                 labels=True,
                 boxes=True,
@@ -92,7 +114,7 @@ def run_detection(video_path, output_path, progress_callback=None, show_window=F
             cv2.rectangle(
                 annotated,
                 (10, 10),
-                (340, 155),
+                (390, 205),
                 (30, 30, 30),
                 -1
             )
@@ -134,6 +156,15 @@ def run_detection(video_path, output_path, progress_callback=None, show_window=F
                 cv2.FONT_HERSHEY_SIMPLEX,
                 0.6,
                 (0, 255, 0),
+                2
+            )
+            cv2.putText(
+                annotated,
+                f"Status: {crowd_status}",
+                (20,170),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.65,
+                status_color,
                 2
             )
 
@@ -181,7 +212,10 @@ def run_detection(video_path, output_path, progress_callback=None, show_window=F
         "current_people": current_people,
         "total_people": len(unique_ids),
         "fps": round(processing_fps, 1),
-        "frames_processed": frame_count
+        "frames_processed": frame_count,
+        "crowd_status": crowd_status,
+        "elevated_limit":elevated_limit,
+        "high_limit":high_limit
     }
 
 
